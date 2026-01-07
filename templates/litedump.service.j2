@@ -6,6 +6,24 @@ After=network.target
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/litedump.sh
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+PrivateDevices=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+{% set _rw_paths = litedump_databases | map(attribute='dest') | unique | list %}
+{% if _rw_paths | length > 0 %}
+ReadWritePaths={{ _rw_paths | join(' ') }}
+{% endif %}
 
 [Install]
 WantedBy=multi-user.target

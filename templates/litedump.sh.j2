@@ -74,8 +74,8 @@ main() {
     backup_database "{{ db.src }}" "{{ db.dest }}" || true
 {% endfor %}
 
-    if [[ ${{ '{#' }}ERRORS[@]} -gt 0 ]]; then
-        local error_msg="Backup completed with ${{ '{#' }}ERRORS[@]} error(s): ${ERRORS[*]}"
+    if [[ {% raw %}${#ERRORS[@]}{% endraw %} -gt 0 ]]; then
+        local error_msg="Backup completed with {% raw %}${#ERRORS[@]}{% endraw %} error(s): ${ERRORS[*]}"
         log_error "$error_msg"
         send_discord_notification "$error_msg"
         exit 1
