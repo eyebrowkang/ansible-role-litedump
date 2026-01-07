@@ -1,5 +1,7 @@
 ---
 galaxy_info:
+  namespace: eyebrowkang
+  role_name: litedump
   author: eyebrowkang
   description: Scheduled SQLite database backup using systemd timer
   license: MIT
