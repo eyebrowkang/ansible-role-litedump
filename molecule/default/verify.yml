@@ -1,0 +1,83 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Check backup script exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/litedump.sh
+      register: script_stat
+
+    - name: Assert backup script exists
+      ansible.builtin.assert:
+        that:
+          - script_stat.stat.exists
+          - script_stat.stat.executable
+
+    - name: Check systemd service exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/litedump.service
+      register: service_stat
+
+    - name: Assert systemd service exists
+      ansible.builtin.assert:
+        that:
+          - service_stat.stat.exists
+
+    - name: Check systemd timer exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/litedump.timer
+      register: timer_stat
+
+    - name: Assert systemd timer exists
+      ansible.builtin.assert:
+        that:
+          - timer_stat.stat.exists
+
+    - name: Check timer is enabled and active
+      ansible.builtin.systemd_service:
+        name: litedump.timer
+      register: timer_status
+
+    - name: Assert timer is enabled and active
+      ansible.builtin.assert:
+        that:
+          - timer_status.status.UnitFileState == "enabled"
+          - timer_status.status.ActiveState == "active"
+
+    - name: Run backup manually
+      ansible.builtin.command: /usr/local/bin/litedump.sh
+      changed_when: true
+
+    - name: Check backup directory exists
+      ansible.builtin.stat:
+        path: /tmp/backup/
+      register: backup_dir_stat
+
+    - name: Assert backup directory exists
+      ansible.builtin.assert:
+        that:
+          - backup_dir_stat.stat.exists
+          - backup_dir_stat.stat.isdir
+
+    - name: Find backup files
+      ansible.builtin.find:
+        paths: /tmp/backup/
+        patterns: "test_*.sqlite"
+      register: backup_files
+
+    - name: Assert backup file was created
+      ansible.builtin.assert:
+        that:
+          - backup_files.matched >= 1
+
+    - name: Verify backup file integrity
+      ansible.builtin.shell: |
+        sqlite3 "{{ backup_files.files[0].path }}" "SELECT name FROM test WHERE id=1;"
+      register: backup_content
+      changed_when: false
+
+    - name: Assert backup content is correct
+      ansible.builtin.assert:
+        that:
+          - backup_content.stdout == "hello"

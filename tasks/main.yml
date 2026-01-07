@@ -1,12 +1,20 @@
 ---
-- name: Ensure sqlite3 is installed
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Ensure sqlite is installed
   ansible.builtin.package:
-    name: sqlite3
+    name: "{{ 'sqlite3' if ansible_os_family in ['Debian', 'Suse'] else 'sqlite' }}"
     state: present
 
-- name: Ensure jq is installed (for Discord notifications)
+- name: Ensure jq and curl are installed (for Discord notifications)
   ansible.builtin.package:
-    name: jq
+    name:
+      - jq
+      - curl
     state: present
   when: litedump_discord_webhook | length > 0
 

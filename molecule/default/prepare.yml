@@ -1,0 +1,16 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache and install sqlite3
+      ansible.builtin.apt:
+        name: sqlite3
+        state: present
+        update_cache: true
+
+    - name: Create test SQLite database
+      ansible.builtin.shell: |
+        sqlite3 /tmp/test.db "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT); INSERT INTO test VALUES (1, 'hello');"
+      args:
+        creates: /tmp/test.db

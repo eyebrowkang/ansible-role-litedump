@@ -1,0 +1,12 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  roles:
+    - role: eyebrowkang.litedump
+      vars:
+        litedump_databases:
+          - src: /tmp/test.db
+            dest: /tmp/backup/
+        litedump_retention: 3
+        litedump_timer_oncalendar: "*-*-* *:00/30:00"

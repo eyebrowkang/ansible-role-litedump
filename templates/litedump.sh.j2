@@ -51,15 +51,15 @@ backup_database() {
     if sqlite3 "$src" ".backup '$backup_file'"; then
         log "Backup successful: $backup_file"
 
-        # Cleanup old backups
+        # Cleanup old backups (using tab delimiter to handle paths with spaces)
         local count=0
-        for old_backup in $(ls -t "${dest_dir}/${db_name}_"*.sqlite 2>/dev/null); do
+        while IFS=$'\t' read -r _ old_backup; do
             count=$((count + 1))
             if [[ $count -gt $RETENTION ]]; then
                 log "Removing old backup: $old_backup"
                 rm -f "$old_backup"
             fi
-        done
+        done < <(find "$dest_dir" -maxdepth 1 -name "${db_name}_*.sqlite" -printf '%T@\t%p\n' 2>/dev/null | sort -rn)
     else
         log_error "Backup failed: $src"
         ERRORS+=("Backup failed: $src")
@@ -74,8 +74,8 @@ main() {
     backup_database "{{ db.src }}" "{{ db.dest }}" || true
 {% endfor %}
 
-    if [[ ${#ERRORS[@]} -gt 0 ]]; then
-        local error_msg="Backup completed with ${#ERRORS[@]} error(s): ${ERRORS[*]}"
+    if [[ ${{ '{#' }}ERRORS[@]} -gt 0 ]]; then
+        local error_msg="Backup completed with ${{ '{#' }}ERRORS[@]} error(s): ${ERRORS[*]}"
         log_error "$error_msg"
         send_discord_notification "$error_msg"
         exit 1
