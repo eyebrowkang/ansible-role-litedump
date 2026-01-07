@@ -1,0 +1,10 @@
+# Managed by Ansible - eyebrowkang.litedump
+[Unit]
+Description=Litedump SQLite backup timer
+
+[Timer]
+OnCalendar={{ litedump_timer_oncalendar }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

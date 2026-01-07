@@ -1,0 +1,87 @@
+#!/bin/bash
+# Managed by Ansible - eyebrowkang.litedump
+
+set -euo pipefail
+
+RETENTION={{ litedump_retention }}
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+ERRORS=()
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
+log_error() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
+}
+
+send_discord_notification() {
+    local message="$1"
+{% if litedump_discord_webhook %}
+    local webhook="{{ litedump_discord_webhook }}"
+    local hostname=$(hostname)
+    local payload=$(jq -n \
+        --arg content "**[litedump@${hostname}]** ${message}" \
+        '{content: $content}')
+
+    curl -s -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$webhook" > /dev/null 2>&1 || log_error "Failed to send Discord notification"
+{% else %}
+    : # Discord notification disabled
+{% endif %}
+}
+
+backup_database() {
+    local src="$1"
+    local dest_dir="$2"
+    local db_name=$(basename "$src" | sed 's/\.[^.]*$//')
+    local backup_file="${dest_dir}/${db_name}_${TIMESTAMP}.sqlite"
+
+    if [[ ! -f "$src" ]]; then
+        log_error "Source database not found: $src"
+        ERRORS+=("Source not found: $src")
+        return 1
+    fi
+
+    mkdir -p "$dest_dir"
+
+    log "Backing up: $src -> $backup_file"
+
+    if sqlite3 "$src" ".backup '$backup_file'"; then
+        log "Backup successful: $backup_file"
+
+        # Cleanup old backups
+        local count=0
+        for old_backup in $(ls -t "${dest_dir}/${db_name}_"*.sqlite 2>/dev/null); do
+            count=$((count + 1))
+            if [[ $count -gt $RETENTION ]]; then
+                log "Removing old backup: $old_backup"
+                rm -f "$old_backup"
+            fi
+        done
+    else
+        log_error "Backup failed: $src"
+        ERRORS+=("Backup failed: $src")
+        return 1
+    fi
+}
+
+main() {
+    log "Starting litedump backup"
+
+{% for db in litedump_databases %}
+    backup_database "{{ db.src }}" "{{ db.dest }}" || true
+{% endfor %}
+
+    if [[ ${#ERRORS[@]} -gt 0 ]]; then
+        local error_msg="Backup completed with ${#ERRORS[@]} error(s): ${ERRORS[*]}"
+        log_error "$error_msg"
+        send_discord_notification "$error_msg"
+        exit 1
+    fi
+
+    log "All backups completed successfully"
+}
+
+main "$@"

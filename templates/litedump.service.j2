@@ -1,0 +1,11 @@
+# Managed by Ansible - eyebrowkang.litedump
+[Unit]
+Description=Litedump SQLite backup service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/litedump.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+---
+# List of databases to backup
+# Example:
+#   litedump_databases:
+#     - src: /path/to/db1.sqlite
+#       dest: /backup/db1/
+#     - src: /path/to/db2.sqlite
+#       dest: /backup/db2/
+litedump_databases: []
+
+# Number of backup copies to retain per database
+litedump_retention: 9
+
+# Backup schedule (systemd timer OnCalendar format)
+# Default: every 8 hours at minute 0
+litedump_timer_oncalendar: "*-*-* 00/8:00:00"
+
+# Discord webhook URL for failure notifications (optional)
+# Leave empty to disable notifications
+litedump_discord_webhook: ""
