@@ -16,9 +16,12 @@ log_error() {
 }
 
 send_discord_notification() {
-{% if litedump_discord_webhook %}
+    # Webhook comes from the EnvironmentFile (/etc/litedump.env), not baked into
+    # this script. Empty or unset disables notifications.
+    local webhook="${LITEDUMP_DISCORD_WEBHOOK:-}"
+    [[ -n "$webhook" ]] || return 0
+
     local message="$1"
-    local webhook="{{ litedump_discord_webhook }}"
     local hostname
     hostname=$(hostname)
     local payload
@@ -29,9 +32,6 @@ send_discord_notification() {
     curl -s -H "Content-Type: application/json" \
         -d "$payload" \
         "$webhook" > /dev/null 2>&1 || log_error "Failed to send Discord notification"
-{% else %}
-    : # Discord notification disabled
-{% endif %}
 }
 
 backup_database() {
@@ -46,8 +46,6 @@ backup_database() {
         ERRORS+=("Source not found: $src")
         return 1
     fi
-
-    mkdir -p "$dest_dir"
 
     log "Backing up: $src -> $backup_file"
 

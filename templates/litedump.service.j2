@@ -1,13 +1,19 @@
 # Managed by Ansible - eyebrowkang.litedump
 [Unit]
 Description=Litedump SQLite backup service
-After=network.target
 
 [Service]
+{% set _rw_paths = (litedump_databases | map(attribute='dest') | list) + (litedump_databases | map(attribute='src') | map('dirname') | list) %}
+{% set _rw_paths = _rw_paths | unique | list %}
+{% set _under_tmp = _rw_paths | select('match', '^/(var/)?tmp(/|$)') | list %}
 Type=oneshot
 ExecStart=/usr/local/bin/litedump.sh
+EnvironmentFile=-/etc/litedump.env
 NoNewPrivileges=yes
-PrivateTmp=yes
+{# PrivateTmp gives the unit a private /tmp, which collides with a ReadWritePaths
+   under /tmp (the unit then fails at namespace setup, 226/NAMESPACE). Keep the
+   hardening, but disable it when a configured src/dest path is under /tmp|/var/tmp. #}
+PrivateTmp={{ 'no' if _under_tmp else 'yes' }}
 ProtectSystem=strict
 ProtectControlGroups=yes
 ProtectKernelTunables=yes
@@ -20,15 +26,11 @@ RestrictRealtime=yes
 RestrictNamespaces=yes
 RestrictSUIDSGID=yes
 SystemCallArchitectures=native
-{# ReadWritePaths must include each SOURCE db's directory too, not just the dest:
-   SQLite writes -wal/-shm next to a WAL-mode source database, and ProtectSystem=strict
-   makes the rest of the filesystem read-only (a WAL source would otherwise fail with
-   "unable to open database file"). Dest dirs receive the backups. #}
-{% set _rw_paths = (litedump_databases | map(attribute='dest') | list) + (litedump_databases | map(attribute='src') | map('dirname') | list) %}
-{% set _rw_paths = _rw_paths | unique | list %}
 {% if _rw_paths | length > 0 %}
-{# Quote every path: ReadWritePaths= is whitespace-separated, so an unquoted path
-   containing spaces would be split and rejected by systemd as non-absolute. #}
+{# Include each SOURCE db's dir (not just dest): SQLite writes -wal/-shm next to a
+   WAL-mode source, and ProtectSystem=strict makes everything else read-only. Quote
+   every path — ReadWritePaths= is whitespace-separated, so a path with spaces would
+   otherwise be split and rejected as non-absolute. #}
 ReadWritePaths="{{ _rw_paths | join('" "') }}"
 {% endif %}
 

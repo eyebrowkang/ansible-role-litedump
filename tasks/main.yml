@@ -21,6 +21,22 @@
     state: present
   when: litedump_discord_webhook | length > 0
 
+- name: Deploy Discord webhook environment file
+  ansible.builtin.copy:
+    content: "LITEDUMP_DISCORD_WEBHOOK={{ litedump_discord_webhook }}\n"
+    dest: /etc/litedump.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when: litedump_discord_webhook | length > 0
+
+- name: Remove Discord webhook environment file when unset
+  ansible.builtin.file:
+    path: /etc/litedump.env
+    state: absent
+  when: litedump_discord_webhook | length == 0
+
 - name: Create backup directories
   ansible.builtin.file:
     path: "{{ item.dest }}"
@@ -33,16 +49,13 @@
     src: litedump.sh.j2
     dest: /usr/local/bin/litedump.sh
     mode: "0750"
-  notify: Restart litedump timer
 
 - name: Deploy systemd service
   ansible.builtin.template:
     src: litedump.service.j2
     dest: /etc/systemd/system/litedump.service
     mode: "0644"
-  notify:
-    - Reload systemd
-    - Restart litedump timer
+  notify: Reload systemd
 
 - name: Deploy systemd timer
   ansible.builtin.template:
