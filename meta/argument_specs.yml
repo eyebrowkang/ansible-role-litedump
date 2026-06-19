@@ -1,0 +1,36 @@
+---
+# Defaults live in defaults/main.yml (single source of truth); this spec only
+# validates structure/types. Ansible runs it automatically before the role.
+argument_specs:
+  main:
+    short_description: Scheduled SQLite database backups via a systemd timer
+    description:
+      - Installs a backup script plus a systemd service and timer that back up
+        the configured SQLite databases on a schedule.
+    options:
+      litedump_databases:
+        type: list
+        elements: dict
+        required: false
+        description: Databases to back up; each entry needs a source file and a destination directory.
+        options:
+          src:
+            type: path
+            required: true
+            description: Absolute path to the source SQLite database file.
+          dest:
+            type: path
+            required: true
+            description: Destination directory the backups are written into.
+      litedump_retention:
+        type: int
+        required: false
+        description: Number of backup copies to retain per database (must be >= 1).
+      litedump_timer_oncalendar:
+        type: str
+        required: false
+        description: Backup schedule in systemd OnCalendar format.
+      litedump_discord_webhook:
+        type: str
+        required: false
+        description: Discord webhook URL for failure notifications; empty disables them.

@@ -8,31 +8,29 @@
         path: /usr/local/bin/litedump.sh
       register: script_stat
 
-    - name: Assert backup script exists
+    - name: Assert backup script exists and is executable
       ansible.builtin.assert:
         that:
           - script_stat.stat.exists
           - script_stat.stat.executable
+        quiet: true
 
-    - name: Check systemd service exists
+    - name: Check systemd units exist
       ansible.builtin.stat:
-        path: /etc/systemd/system/litedump.service
-      register: service_stat
+        path: "/etc/systemd/system/{{ item }}"
+      register: unit_stat
+      loop:
+        - litedump.service
+        - litedump.timer
 
-    - name: Assert systemd service exists
+    - name: Assert systemd units exist
       ansible.builtin.assert:
         that:
-          - service_stat.stat.exists
-
-    - name: Check systemd timer exists
-      ansible.builtin.stat:
-        path: /etc/systemd/system/litedump.timer
-      register: timer_stat
-
-    - name: Assert systemd timer exists
-      ansible.builtin.assert:
-        that:
-          - timer_stat.stat.exists
+          - item.stat.exists
+        quiet: true
+      loop: "{{ unit_stat.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 
     - name: Check timer is enabled and active
       ansible.builtin.systemd_service:
@@ -44,40 +42,43 @@
         that:
           - timer_status.status.UnitFileState == "enabled"
           - timer_status.status.ActiveState == "active"
+        quiet: true
 
-    - name: Run backup manually
-      ansible.builtin.command: /usr/local/bin/litedump.sh
-      changed_when: true
+    # Trigger the backup through the REAL systemd service (oneshot), not a manual
+    # script run — this is what the timer does, and it exercises the unit sandbox
+    # (PrivateTmp / ProtectSystem=strict / ReadWritePaths). A unit that can't start
+    # (e.g. 226/NAMESPACE) or a WAL source it can't read fails the play here.
+    - name: Run the backup via the systemd service
+      ansible.builtin.systemd_service:
+        name: litedump.service
+        state: started
 
-    - name: Check backup directory exists
-      ansible.builtin.stat:
-        path: /tmp/backup/
-      register: backup_dir_stat
-
-    - name: Assert backup directory exists
-      ansible.builtin.assert:
-        that:
-          - backup_dir_stat.stat.exists
-          - backup_dir_stat.stat.isdir
-
-    - name: Find backup files
+    - name: Find the backup produced for each database
       ansible.builtin.find:
-        paths: /tmp/backup/
-        patterns: "test_*.sqlite"
-      register: backup_files
+        paths: "{{ item.dest }}"
+        patterns: >-
+          {{ (item.src | basename | regex_replace('\.[^.]*$', '')) ~ '_*.sqlite' }}
+      register: backups
+      loop: "{{ litedump_databases }}"
+      loop_control:
+        label: "{{ item.src }}"
 
-    - name: Assert backup file was created
+    - name: Assert each database produced a backup
       ansible.builtin.assert:
         that:
-          - backup_files.matched >= 1
+          - item.matched >= 1
+        fail_msg: "No backup found in {{ item.item.dest }} for {{ item.item.src }}"
+        quiet: true
+      loop: "{{ backups.results }}"
+      loop_control:
+        label: "{{ item.item.src }}"
 
-    - name: Verify backup file integrity
+    - name: Verify each backup's integrity (content must round-trip)
       ansible.builtin.command:
-        cmd: sqlite3 {{ backup_files.files[0].path }} "SELECT name FROM test WHERE id=1;"
-      register: backup_content
+        cmd: sqlite3 "{{ item.files[0].path }}" "SELECT name FROM test WHERE id=1;"
+      register: integrity
       changed_when: false
-
-    - name: Assert backup content is correct
-      ansible.builtin.assert:
-        that:
-          - backup_content.stdout == "hello"
+      failed_when: integrity.stdout != "hello"
+      loop: "{{ backups.results }}"
+      loop_control:
+        label: "{{ item.item.src }}"
