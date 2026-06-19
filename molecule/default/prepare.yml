@@ -13,8 +13,24 @@
         name: "{{ 'sqlite3' if ansible_os_family in ['Debian', 'Suse'] else 'sqlite' }}"
         state: present
 
-    - name: Create test SQLite database
+    - name: Create source database directories
+      ansible.builtin.file:
+        path: "{{ item.src | dirname }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ litedump_databases }}"
+      loop_control:
+        label: "{{ item.src }}"
+
+    - name: Seed source SQLite databases (force WAL mode on any 'wal' db — the H1 case)
       ansible.builtin.command:
-        cmd: sqlite3 /tmp/test.db "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT); INSERT INTO test VALUES (1, 'hello');"
-        creates: /tmp/test.db
+        cmd: sqlite3 {{ item.src }} "{{ _seed_sql }}"
+        creates: "{{ item.src }}"
+      vars:
+        _seed_sql: >-
+          {{ 'PRAGMA journal_mode=WAL; ' if 'wal' in (item.src | basename) else '' }}CREATE
+          TABLE test (id INTEGER PRIMARY KEY, name TEXT); INSERT INTO test VALUES (1, 'hello');
       changed_when: true
+      loop: "{{ litedump_databases }}"
+      loop_control:
+        label: "{{ item.src }}"

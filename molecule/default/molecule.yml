@@ -31,6 +31,16 @@ provisioner:
         # containers on CI runners ("PAM account management error"). Connection
         # variables override the play-level `become: true` keyword.
         ansible_become: false
+        # Test fixtures — single source of truth shared by converge/prepare/verify.
+        # (group_vars are in scope for verify.yml, which does NOT load defaults/vars.)
+        # Realistic /var paths, not /tmp (PrivateTmp would hide /tmp from the service).
+        litedump_databases:
+          - src: /var/lib/litedump-test/delete.db    # default rollback-journal mode
+            dest: /var/backups/litedump-test/delete/
+          - src: /var/lib/litedump-test/wal.db       # WAL mode — exercises the H1 source-dir fix
+            dest: /var/backups/litedump-test/wal/
+        litedump_retention: 3
+        litedump_timer_oncalendar: "*-*-* *:00/30:00"
   playbooks:
     create: create.yml
     destroy: destroy.yml

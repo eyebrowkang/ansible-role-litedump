@@ -1,0 +1,30 @@
+---
+# Structural validation (types, required src/dest) is handled automatically by
+# meta/argument_specs.yml before this runs. These asserts cover the constraints
+# argument_specs can't express.
+
+- name: Validate litedump_retention is a positive integer
+  ansible.builtin.assert:
+    that:
+      - litedump_retention | int >= 1
+    fail_msg: "litedump_retention must be >= 1 (got {{ litedump_retention }})."
+    quiet: true
+
+- name: Validate no two databases share a destination and base name
+  vars:
+    # Each backup is named "<basename-without-extension>_<timestamp>.sqlite" in its
+    # dest dir; two entries with the same (dest, basename) collide on filename and
+    # share a retention glob. Build a "dest|name" key per entry and require uniqueness.
+    _backup_keys: >-
+      {{ litedump_databases | map(attribute='dest')
+         | zip(litedump_databases | map(attribute='src') | map('basename')
+               | map('regex_replace', '\.[^.]*$', ''))
+         | map('join', '|') | list }}
+  ansible.builtin.assert:
+    that:
+      - _backup_keys | length == (_backup_keys | unique | length)
+    fail_msg: >-
+      Two entries in litedump_databases would write the same backup name into the
+      same destination (basename + dest collision). Use distinct dest dirs or rename
+      the source files.
+    quiet: true

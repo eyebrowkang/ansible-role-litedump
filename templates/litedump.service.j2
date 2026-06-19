@@ -20,7 +20,12 @@ RestrictRealtime=yes
 RestrictNamespaces=yes
 RestrictSUIDSGID=yes
 SystemCallArchitectures=native
-{% set _rw_paths = litedump_databases | map(attribute='dest') | unique | list %}
+{# ReadWritePaths must include each SOURCE db's directory too, not just the dest:
+   SQLite writes -wal/-shm next to a WAL-mode source database, and ProtectSystem=strict
+   makes the rest of the filesystem read-only (a WAL source would otherwise fail with
+   "unable to open database file"). Dest dirs receive the backups. #}
+{% set _rw_paths = (litedump_databases | map(attribute='dest') | list) + (litedump_databases | map(attribute='src') | map('dirname') | list) %}
+{% set _rw_paths = _rw_paths | unique | list %}
 {% if _rw_paths | length > 0 %}
 ReadWritePaths={{ _rw_paths | join(' ') }}
 {% endif %}
