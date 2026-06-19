@@ -4,9 +4,10 @@ An Ansible role for scheduled SQLite database backups using systemd timers.
 
 ## Requirements
 
-- Ansible 2.16+
+- ansible-core >= 2.16.0
 - systemd
-- sqlite/sqlite3 package
+- sqlite/sqlite3 package (installed by the role)
+- [uv](https://docs.astral.sh/uv/) for local development
 
 ## Role Variables
 
@@ -25,6 +26,8 @@ litedump_databases:
 | `litedump_retention` | `9` | Number of backup copies to retain per database |
 | `litedump_timer_oncalendar` | `"*-*-* 00/8:00:00"` | Backup schedule in systemd timer OnCalendar format |
 | `litedump_discord_webhook` | `""` | Discord webhook URL for failure notifications |
+
+See [`defaults/main.yml`](defaults/main.yml) for the full list.
 
 ## Dependencies
 
@@ -64,6 +67,25 @@ None.
 Backups are named in format: `{database_name}_{timestamp}.sqlite`
 
 Example: `data_20260107_020000.sqlite`
+
+## Development & testing
+
+Managed with [copier](https://copier.readthedocs.io/) + [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync          # install dev toolchain
+make lint        # yamllint + ansible-lint
+make shellcheck  # render shell templates and shellcheck them
+make test        # molecule test — docker scenario (fast; what CI runs)
+```
+
+Pull future template improvements:
+
+```bash
+copier update --trust
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ## License
 

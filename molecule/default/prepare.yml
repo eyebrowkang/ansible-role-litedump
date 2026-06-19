@@ -3,14 +3,18 @@
   hosts: all
   become: true
   tasks:
-    - name: Update apt cache and install sqlite3
+    - name: Update apt cache (Debian)
       ansible.builtin.apt:
-        name: sqlite3
-        state: present
         update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Install sqlite client (package name differs across distros)
+      ansible.builtin.package:
+        name: "{{ 'sqlite3' if ansible_os_family in ['Debian', 'Suse'] else 'sqlite' }}"
+        state: present
 
     - name: Create test SQLite database
-      ansible.builtin.shell: |
-        sqlite3 /tmp/test.db "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT); INSERT INTO test VALUES (1, 'hello');"
-      args:
+      ansible.builtin.command:
+        cmd: sqlite3 /tmp/test.db "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT); INSERT INTO test VALUES (1, 'hello');"
         creates: /tmp/test.db
+      changed_when: true
