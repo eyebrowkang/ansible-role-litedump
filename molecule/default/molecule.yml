@@ -39,6 +39,8 @@ provisioner:
             dest: /var/backups/litedump-test/delete/
           - src: /var/lib/litedump-test/wal.db       # WAL mode — exercises the H1 source-dir fix
             dest: /var/backups/litedump-test/wal/
+          - src: "/var/lib/litedump test/spaced.db"  # spaces in src + dest — ReadWritePaths quoting
+            dest: "/var/backups/litedump test/spaced/"
         litedump_retention: 3
         litedump_timer_oncalendar: "*-*-* *:00/30:00"
   playbooks:

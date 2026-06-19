@@ -24,7 +24,7 @@
 
     - name: Seed source SQLite databases (force WAL mode on any 'wal' db — the H1 case)
       ansible.builtin.command:
-        cmd: sqlite3 {{ item.src }} "{{ _seed_sql }}"
+        cmd: sqlite3 "{{ item.src }}" "{{ _seed_sql }}"
         creates: "{{ item.src }}"
       vars:
         _seed_sql: >-

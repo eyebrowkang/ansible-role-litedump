@@ -27,7 +27,9 @@ SystemCallArchitectures=native
 {% set _rw_paths = (litedump_databases | map(attribute='dest') | list) + (litedump_databases | map(attribute='src') | map('dirname') | list) %}
 {% set _rw_paths = _rw_paths | unique | list %}
 {% if _rw_paths | length > 0 %}
-ReadWritePaths={{ _rw_paths | join(' ') }}
+{# Quote every path: ReadWritePaths= is whitespace-separated, so an unquoted path
+   containing spaces would be split and rejected by systemd as non-absolute. #}
+ReadWritePaths="{{ _rw_paths | join('" "') }}"
 {% endif %}
 
 [Install]

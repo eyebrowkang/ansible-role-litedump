@@ -75,7 +75,7 @@
 
     - name: Verify each backup's integrity (content must round-trip)
       ansible.builtin.command:
-        cmd: sqlite3 {{ item.files[0].path }} "SELECT name FROM test WHERE id=1;"
+        cmd: sqlite3 "{{ item.files[0].path }}" "SELECT name FROM test WHERE id=1;"
       register: integrity
       changed_when: false
       failed_when: integrity.stdout != "hello"
