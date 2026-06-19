@@ -72,8 +72,8 @@
           - backup_files.matched >= 1
 
     - name: Verify backup file integrity
-      ansible.builtin.shell: |
-        sqlite3 "{{ backup_files.files[0].path }}" "SELECT name FROM test WHERE id=1;"
+      ansible.builtin.command:
+        cmd: sqlite3 {{ backup_files.files[0].path }} "SELECT name FROM test WHERE id=1;"
       register: backup_content
       changed_when: false
 

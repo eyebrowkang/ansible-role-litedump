@@ -16,11 +16,13 @@ log_error() {
 }
 
 send_discord_notification() {
-    local message="$1"
 {% if litedump_discord_webhook %}
+    local message="$1"
     local webhook="{{ litedump_discord_webhook }}"
-    local hostname=$(hostname)
-    local payload=$(jq -n \
+    local hostname
+    hostname=$(hostname)
+    local payload
+    payload=$(jq -n \
         --arg content "**[litedump@${hostname}]** ${message}" \
         '{content: $content}')
 
@@ -35,7 +37,8 @@ send_discord_notification() {
 backup_database() {
     local src="$1"
     local dest_dir="$2"
-    local db_name=$(basename "$src" | sed 's/\.[^.]*$//')
+    local db_name
+    db_name=$(basename "$src" | sed 's/\.[^.]*$//')
     local backup_file="${dest_dir}/${db_name}_${TIMESTAMP}.sqlite"
 
     if [[ ! -f "$src" ]]; then
