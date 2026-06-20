@@ -4,7 +4,7 @@ An Ansible role for scheduled SQLite database backups using systemd timers.
 
 ## Requirements
 
-- ansible-core >= 2.16.0
+- ansible-core >= 2.18.0
 - systemd
 - sqlite/sqlite3 package (installed by the role)
 - [uv](https://docs.astral.sh/uv/) for local development
