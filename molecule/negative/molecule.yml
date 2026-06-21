@@ -1,0 +1,54 @@
+---
+# Negative scenario (layer A) — proves the role REJECTS bad input. The default scenario
+# only ever feeds VALID fixtures, so it only proves the happy path; the rejection logic in
+# meta/argument_specs.yml + tasks/validate.yml (e.g. the basename+dest collision assert) is
+# otherwise never exercised. converge.yml applies the role with deliberately-bad vars inside
+# block/rescue and asserts it fails — AND fails for the EXPECTED reason, not some unrelated
+# error (a role that failed for the wrong reason must not look "green").
+#
+# Validation runs BEFORE the role touches the system, so this is distro-agnostic and needs
+# no systemd / sqlite / seeded databases — a single plain container is enough. The docker
+# create/destroy (+ collections.yml) are symlinked from the default scenario so they stay in
+# sync. Run: `molecule test -s negative`  (or `make test-negative`).
+dependency:
+  name: galaxy   # auto-installs molecule/negative/collections.yml (symlink → default)
+
+driver:
+  name: default
+  options:
+    managed: true
+
+platforms:
+  # No systemd needed (the role fails at validation, before any unit is deployed), so a
+  # plain non-privileged container suffices. debian12 is arbitrary — validation is the same
+  # on every distro.
+  - name: litedump-negative
+    image: "geerlingguy/docker-debian12-ansible:latest"
+    systemd: false
+
+provisioner:
+  name: ansible
+  inventory:
+    group_vars:
+      all:
+        # The docker connection already runs as root; become would be a redundant sudo
+        # wrapper (and sudo's PAM stack is flaky on some CI runners).
+        ansible_become: false
+  playbooks:
+    create: create.yml
+    destroy: destroy.yml
+    converge: converge.yml
+
+verifier:
+  name: ansible
+
+scenario:
+  name: negative
+  # No prepare (nothing to seed) and no verify (the assertions live in converge's rescue).
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - converge
+    - destroy

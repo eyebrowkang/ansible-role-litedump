@@ -74,9 +74,10 @@ Managed with [copier](https://copier.readthedocs.io/) + [uv](https://docs.astral
 
 ```bash
 uv sync          # install dev toolchain
-make lint        # yamllint + ansible-lint
-make shellcheck  # render shell templates and shellcheck them
-make test        # molecule test — docker scenario (fast; what CI runs)
+make lint          # yamllint + ansible-lint
+make shellcheck    # render shell templates and shellcheck them
+make test          # molecule test — docker scenario (+ retention side_effect)
+make test-negative # molecule test -s negative — asserts the role REJECTS bad input
 ```
 
 Pull future template improvements:

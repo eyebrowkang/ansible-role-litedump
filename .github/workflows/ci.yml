@@ -38,6 +38,23 @@ jobs:
         if: always()
         run: uv run molecule destroy
 
+  molecule-negative:
+    # Layer A regression net: prove the role REJECTS bad input (basename+dest collision,
+    # retention < 1). The default scenario only feeds valid fixtures, so rejection logic is
+    # otherwise untested. Validation is distro-agnostic → single job, no distro matrix; fast
+    # (the role fails before touching the system), so it runs on every push/PR.
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - name: Molecule (negative scenario)
+        run: uv run molecule test -s negative
+      - name: Destroy
+        if: always()
+        run: uv run molecule destroy -s negative
+
   molecule-floor:
     # Prove the role runs on its DECLARED minimum ansible-core (meta/main.yml
     # min_ansible_version), not just the dev toolchain it pins. Build a separate venv at

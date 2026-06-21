@@ -1,10 +1,11 @@
 # Local dev targets (mirror CI). Requires uv: https://docs.astral.sh/uv/
-.PHONY: help install deps lint test converge check destroy shellcheck
+.PHONY: help install deps lint test test-negative converge check destroy shellcheck
 help:
 	@echo "install   - uv sync (dev toolchain)"
 	@echo "lint      - yamllint + ansible-lint"
 	@echo "deps      - install Galaxy collections that ansible-lint needs"
-	@echo "test      - molecule test (docker scenario)"
+	@echo "test      - molecule test (docker scenario; includes the retention side_effect)"
+	@echo "test-negative - molecule test -s negative (asserts the role REJECTS bad input)"
 	@echo "converge  - molecule converge (docker)"
 	@echo "check     - molecule converge --check (dry-run; only if the role is check-mode safe)"
 	@echo "destroy   - molecule destroy (docker)"
@@ -27,6 +28,11 @@ shellcheck:
 	uv run bash tests/shellcheck.sh
 test:
 	uv run molecule test
+
+# Negative scenario: applies the role with bad input and asserts it is REJECTED (the
+# happy-path `test` only ever feeds valid fixtures). See molecule/negative/.
+test-negative:
+	uv run molecule test -s negative
 
 converge:
 	uv run molecule converge

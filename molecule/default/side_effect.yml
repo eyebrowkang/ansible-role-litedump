@@ -1,0 +1,51 @@
+---
+# Deep retention test (layer C/D). The happy-path converge + verify only ever produces
+# ONE backup per database, so the backup script's retention pruning — keep the newest
+# litedump_retention copies, delete the rest — is never actually exercised. Here we drive
+# the backup litedump_retention + 2 times, sleeping 1s between runs so each backup gets a
+# distinct second-resolution timestamp ("<name>_YYYYMMDD_HHMMSS.sqlite"), then assert
+# exactly litedump_retention survive per database — proving the older copies were pruned.
+#
+# We run /usr/local/bin/litedump.sh directly (not via systemctl) purely to loop with sleeps;
+# verify.yml already exercises the REAL systemd path (sandbox + ReadWritePaths). The pruning
+# logic lives entirely in the script, so this is the faithful place to test it.
+#
+# litedump_databases / litedump_retention come from molecule.yml group_vars (the single
+# source of truth, also in scope for prepare + verify).
+- name: Side effect — exercise the backup script's retention pruning
+  hosts: all
+  become: true
+  tasks:
+    - name: Run the backup litedump_retention + 2 times (distinct timestamps)
+      ansible.builtin.shell: |
+        set -eu
+        for _ in $(seq 1 {{ (litedump_retention | int) + 2 }}); do
+          /usr/local/bin/litedump.sh
+          sleep 1
+        done
+      changed_when: true
+
+    - name: Count surviving backups per database
+      ansible.builtin.find:
+        paths: "{{ item.dest }}"
+        patterns: >-
+          {{ (item.src | basename | regex_replace('\.[^.]*$', '')) ~ '_*.sqlite' }}
+      register: pruned
+      loop: "{{ litedump_databases }}"
+      loop_control:
+        label: "{{ item.src }}"
+
+    - name: Assert retention kept exactly litedump_retention backups per database
+      ansible.builtin.assert:
+        that:
+          - item.matched == (litedump_retention | int)
+        fail_msg: >-
+          {{ item.item.dest }} holds {{ item.matched }} backup(s) after
+          {{ (litedump_retention | int) + 2 }} runs; expected exactly
+          {{ litedump_retention }} (older copies should have been pruned).
+        success_msg: >-
+          {{ item.item.dest }}: pruned to {{ item.matched }} backup(s) as expected.
+        quiet: true
+      loop: "{{ pruned.results }}"
+      loop_control:
+        label: "{{ item.item.src }}"
