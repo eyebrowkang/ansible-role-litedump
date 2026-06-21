@@ -48,6 +48,7 @@ provisioner:
     destroy: destroy.yml
     prepare: prepare.yml
     converge: converge.yml
+    side_effect: side_effect.yml
     verify: verify.yml
 
 verifier:
@@ -63,5 +64,8 @@ scenario:
     - prepare
     - converge
     - idempotence
+    # side_effect drives the backup repeatedly to exercise retention pruning (see
+    # side_effect.yml) — inserted after idempotence, before verify (happy path).
+    - side_effect
     - verify
     - destroy

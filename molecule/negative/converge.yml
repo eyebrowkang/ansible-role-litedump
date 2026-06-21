@@ -1,0 +1,69 @@
+---
+# Negative converge — the role MUST reject invalid input. Each block applies the role with a
+# deliberately-bad value and EXPECTS the role to fail; the rescue then asserts the failure was
+# the EXPECTED rejection (its message matches the corresponding validate.yml fail_msg), not an
+# unrelated error. Without that check a role broken in some other way could "pass" by failing
+# for the wrong reason — a false green.
+#
+# Pattern (docs/molecule-testing.md ③): block { apply-bad-input; fail "should have failed" }
+# rescue { assert the failure was the expected one }. If the role wrongly ACCEPTS the input,
+# the `fail` task fires and its message (which does NOT contain the expected keyword) makes the
+# rescue's assert fail loudly.
+- name: Assert the role rejects invalid input
+  hosts: all
+  become: true
+  tasks:
+    # ── basename + dest collision (tasks/validate.yml) ──────────────────────────────────
+    # Two databases whose basenames both reduce to "data", written into the SAME dest dir,
+    # would share a backup filename and retention glob. validate.yml must reject this.
+    - name: Reject two databases that collide on (basename, dest)
+      block:
+        - name: Apply role with colliding databases (expected to fail)
+          ansible.builtin.include_role:
+            name: eyebrowkang.litedump
+          vars:
+            litedump_databases:
+              - src: /var/lib/app/data.db
+                dest: /var/backups/shared/
+              - src: /opt/other/data.sqlite     # same basename "data" + same dest → collision
+                dest: /var/backups/shared/
+        - name: Role accepted colliding databases — that is a bug
+          ansible.builtin.fail:
+            msg: >-
+              ROLE DID NOT REJECT colliding databases: two entries reducing to the same
+              backup name in the same dest were accepted. validate.yml should have failed.
+      rescue:
+        - name: Assert the failure was the expected collision rejection
+          ansible.builtin.assert:
+            that:
+              - "'collision' in (ansible_failed_result.msg | default(''))"
+            fail_msg: >-
+              Role failed, but NOT via the collision assert. Actual failure:
+              {{ ansible_failed_result.msg | default('(no message)') }}
+            success_msg: Role correctly rejected the basename+dest collision.
+            quiet: true
+
+    # ── retention below 1 (tasks/validate.yml) ──────────────────────────────────────────
+    # argument_specs can type-check litedump_retention as an int but can't express ">= 1";
+    # validate.yml's assert does. Feed 0 and expect that assert to reject it.
+    - name: Reject litedump_retention < 1
+      block:
+        - name: Apply role with litedump_retention = 0 (expected to fail)
+          ansible.builtin.include_role:
+            name: eyebrowkang.litedump
+          vars:
+            litedump_databases: []
+            litedump_retention: 0
+        - name: Role accepted retention 0 — that is a bug
+          ansible.builtin.fail:
+            msg: ROLE DID NOT REJECT litedump_retention=0; validate.yml should have failed.
+      rescue:
+        - name: Assert the failure was the expected retention rejection
+          ansible.builtin.assert:
+            that:
+              - "'litedump_retention' in (ansible_failed_result.msg | default(''))"
+            fail_msg: >-
+              Role failed, but NOT via the retention assert. Actual failure:
+              {{ ansible_failed_result.msg | default('(no message)') }}
+            success_msg: Role correctly rejected litedump_retention < 1.
+            quiet: true
