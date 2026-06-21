@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/eyebrowkang/ansible-role-litedump/compare/1.0.1...1.0.2) (2026-06-21)
+
+
+### Tests
+
+* **molecule:** cover input rejection and retention pruning ([#8](https://github.com/eyebrowkang/ansible-role-litedump/issues/8)) ([cab86a1](https://github.com/eyebrowkang/ansible-role-litedump/commit/cab86a1045d687e35f9b5fdcc9e5203257981e6e))
+
 ## [1.0.1](https://github.com/eyebrowkang/ansible-role-litedump/compare/1.0.0...1.0.1) (2026-06-19)
 
 
